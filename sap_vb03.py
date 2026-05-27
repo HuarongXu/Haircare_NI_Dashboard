@@ -51,6 +51,64 @@ def get_max_sos_date(filepath):
     return max_date.strftime("%m/%d/%Y")
 
 
+def extract_vb03_subtables(src_filepath, save_path, date_str):
+    """
+    从原始 VB03 报表中提取两个子表并另存：
+      - tob: Sale/Di/Plnt/Cl/Material/Valid From/Valid To
+      - toc: Sale/Di/Ship-to/Material/Valid From/Valid To
+    """
+    df_raw = pd.read_excel(src_filepath, header=None)
+
+    # 动态找所有 header 行（含 Sale 且含 Valid From/Valid To）
+    header_rows = []
+    for i, row in df_raw.iterrows():
+        vals = [str(v).strip() for v in row.tolist()]
+        if "Sale" in vals and any("Valid" in v for v in vals):
+            header_rows.append(i)
+
+    if len(header_rows) < 2:
+        print(f"  [警告] 只找到 {len(header_rows)} 个表头，期望至少 2 个，跳过子表提取")
+        return
+
+    # 定位两个目标表的 header 行
+    tob_hdr, toc_hdr = header_rows[0], header_rows[1]
+    next_after_toc = header_rows[2] if len(header_rows) > 2 else len(df_raw)
+
+    def _extract(hdr_row, end_row, col_map):
+        """col_map: {output_name: col_index}"""
+        # 取 header 行下一行到 end_row 之前的数据行
+        data = df_raw.iloc[hdr_row + 1 : end_row].copy()
+        # 只保留目标列
+        col_indices = list(col_map.values())
+        col_names = list(col_map.keys())
+        data = data.iloc[:, col_indices]
+        data.columns = col_names
+        # 去空行，strip 字符串列
+        data = data.dropna(how="all").reset_index(drop=True)
+        for c in data.columns:
+            if data[c].dtype == object:
+                data[c] = data[c].astype(str).str.strip()
+                data[c] = data[c].replace("nan", pd.NA)
+        data = data.dropna(how="all").reset_index(drop=True)
+        return data
+
+    # TOB: Sale/Di/Plnt/Cl/Material/Valid From/Valid To
+    tob_cols = {"Sale": 1, "Di": 2, "Plnt": 3, "Cl": 5, "Material": 7,
+                "Valid From": 11, "Valid To": 13}
+    df_tob = _extract(tob_hdr, toc_hdr, tob_cols)
+    tob_path = os.path.join(save_path, f"PS_Planning_VB03_tob{date_str}.xlsx")
+    df_tob.to_excel(tob_path, index=False)
+    print(f"  TOB 子表已保存: {tob_path}  ({len(df_tob)} 行)")
+
+    # TOC: Sale/Di/Ship-to/Material/Valid From/Valid To
+    toc_cols = {"Sale": 1, "Di": 2, "Ship-to": 3, "Material": 8,
+                "Valid From": 12, "Valid To": 14}
+    df_toc = _extract(toc_hdr, next_after_toc, toc_cols)
+    toc_path = os.path.join(save_path, f"PS_Planning_VB03_toc{date_str}.xlsx")
+    df_toc.to_excel(toc_path, index=False)
+    print(f"  TOC 子表已保存: {toc_path}  ({len(df_toc)} 行)")
+
+
 def clean_excel(filepath):
     """清理Excel文件中的空行和空列，自动检测真正的header行"""
     df_raw = pd.read_excel(filepath, header=None)
@@ -156,6 +214,9 @@ def run_vb03_report():
 
     if os.path.exists(output_path):
         print(f"  文件已保存: {output_path}")
+        # 提取两个子表
+        print("\n正在提取子表 tob / toc...")
+        extract_vb03_subtables(output_path, SAP_SAVE_PATH, date.today().strftime('%Y%m%d'))
     else:
         print(f"[警告] 文件未找到: {output_path}")
 
