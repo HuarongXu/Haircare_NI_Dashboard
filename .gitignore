@@ -1,0 +1,23 @@
+# 生成的输出 Excel 文件
+PS_Planning_*.xlsx
+code list.xlsx
+
+# 源数据 / Job Aid（不入库）
+GC HC NI Code List*.xlsx
+GC HC NI Code List*.xls
+如何下载report*.xlsx
+
+# Office 临时文件
+~$*.xlsx
+~$*.xls
+~$*.docx
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 虚拟环境
+.venv/
+venv/
+env/
