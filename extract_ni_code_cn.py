@@ -7,11 +7,11 @@ import os
 import shutil
 import glob
 import pandas as pd
-from app_config import NI_SOURCE_DIR, OUTPUT_DIR
+from app_config import NI_SOURCE_DIR, DAILY_DIR
 
 # ============ 可配置路径 ============
 PATH_A = NI_SOURCE_DIR
-PATH_B = OUTPUT_DIR
+PATH_B = DAILY_DIR
 # ====================================
 
 OUTPUT_CN = "PS_Planning_NI_Code_CN.xlsx"
